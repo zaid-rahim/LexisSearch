@@ -1,0 +1,44 @@
+Testing Legal, Justice & Human Rights 
+
+Query:press freedom violations and intimidation of journalists
+
+What it should find: Articles like "CPJ urges India to stop harassing employees of The Wire"
+
+Query: health deterioration of an imprisoned political figure
+
+What it should find: Articles like "Chronic illnesses put jailed PFI founder E Abubacker’s “life at risk”"
+
+Query: minority groups facing persecution and violence
+
+What it should find: Articles referencing "Gujarat flogging" or workplace harassment incidents mentioned in your data.
+
+2. Testing Infrastructure & Economy
+These test if the AI understands synonyms for money, power, and infrastructure.
+
+Query: nationwide electricity grid failure and blackout recovery
+
+What it should find: It should pull up "Power 'fully restored' across Pakistan after 12-hour outage: energy ministry" even though you didn't use the words "power" or "outage".
+
+Query: fluctuations in precious metal market rates
+
+What it should find: It should instantly map this to "Gold price in Pakistan today".
+
+Query: auditing financial corruption and missing funds
+
+What it should find: Articles like "AGP highlights Rs3.5bn irregularities" (matching "irregularities" with "corruption/missing funds").
+
+3. Testing International Relations & Geopolitics
+These test the AI's understanding of diplomatic events and geography.
+
+Query: boycotting an international sporting tournament
+
+What it should find: It will map this to "India decides against visiting Pakistan for Asia Cup".
+
+Query: foreign investment and trade routes with Beijing
+
+What it should find: Articles mentioning the "China–Pakistan Economic Corridor" (CPEC).
+
+4. Testing Health & Medical
+Query: infectious disease epidemic alerts
+
+What it should find: It should pull up the article "NIH issues alert about possible Ebola virus outbreak".
