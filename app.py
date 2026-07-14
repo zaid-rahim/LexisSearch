@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-import requests
+from sentence_transformers import SentenceTransformer
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Page Config
@@ -222,16 +222,21 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Load Resources
+# 4. Load Resources (Natively)
 # ─────────────────────────────────────────────────────────────────────────────
-@st.cache_resource(show_spinner="Loading matrix indexes...")
+@st.cache_resource(show_spinner="Booting local AI environment...")
 def load_resources():
-    return np.load("Doc_Embeddings.npy")
+    doc_embeddings = np.load("Doc_Embeddings.npy")
+    model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+    return doc_embeddings, model
 
 try:
-    doc_embeddings = load_resources()
+    doc_embeddings, model = load_resources()
 except FileNotFoundError:
     st.error("**Missing file:** `Doc_Embeddings.npy` not found. Place it in the working directory and restart.")
+    st.stop()
+except Exception as e:
+    st.error(f"Native Boot Error: {e}")
     st.stop()
 
 
@@ -270,7 +275,7 @@ st.markdown(f"""
         <div class="stat-label">Embed Dims</div>
     </div>
     <div class="stat-box">
-        <div class="stat-value">API Server</div>
+        <div class="stat-value">Local MPNet</div>
         <div class="stat-label">Encoder</div>
     </div>
     <div class="stat-box">
@@ -281,7 +286,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. Search Input & Serverless Function
+# 6. Search Input & Similarity Math
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown('<span class="search-label">🔍 &nbsp;Query the Corpus</span>', unsafe_allow_html=True)
 
@@ -291,27 +296,6 @@ query_text = st.text_input(
     placeholder="e.g. right to fair trial · custodial torture · habeas corpus jurisdiction",
     key="main_query",
 )
-
-# REPLACE WITH THIS:
-API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-mpnet-base-v2"
-
-# Pull the token securely from the Streamlit vault
-try:
-    HF_TOKEN = st.secrets["HF_TOKEN"]
-except KeyError:
-    st.error("🔑 Database Secret 'HF_TOKEN' not found in Streamlit Secrets.")
-    st.stop()
-def call_embedding_api(text_query):
-    headers = {
-        "Authorization": f"Bearer {HF_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    payload = {"inputs": text_query, "options": {"wait_for_model": True}}
-    
-    response = requests.post(API_URL, headers=headers, json=payload)
-    if response.status_code != 200:
-        raise Exception(f"Hugging Face API Error {response.status_code}: {response.text}")
-    return np.array(response.json())
 
 def cosine_top_k(query_vec, doc_vecs, k=5):
     q = query_vec.reshape(1, -1)
@@ -329,13 +313,9 @@ if query_text.strip():
         st.error("No documents loaded. Configure `load_documents()` with your corpus path.")
         st.stop()
 
-    with st.spinner("Requesting serverless vector transformation and running search..."):
-        try:
-            q_emb = call_embedding_api(query_text.strip())
-            top_idx, top_scores = cosine_top_k(q_emb, doc_embeddings, k=5)
-        except Exception as e:
-            st.error(f"Failed to reach the Inference API: {e}")
-            st.stop()
+    with st.spinner("Analyzing semantic structure locally..."):
+        q_emb = model.encode(query_text.strip())
+        top_idx, top_scores = cosine_top_k(q_emb, doc_embeddings, k=5)
 
     results = pd.DataFrame({
         "rank":    list(range(1, len(top_idx) + 1)),
