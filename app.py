@@ -292,9 +292,15 @@ query_text = st.text_input(
     key="main_query",
 )
 
-HF_TOKEN = "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"
+# REPLACE WITH THIS:
 API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-mpnet-base-v2"
 
+# Pull the token securely from the Streamlit vault
+try:
+    HF_TOKEN = st.secrets["HF_TOKEN"]
+except KeyError:
+    st.error("🔑 Database Secret 'HF_TOKEN' not found in Streamlit Secrets.")
+    st.stop()
 def call_embedding_api(text_query):
     headers = {
         "Authorization": f"Bearer {HF_TOKEN}",
