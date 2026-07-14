@@ -1,7 +1,7 @@
 import streamlit as st
 import numpy as np
 import pandas as pd
-from sentence_transformers import SentenceTransformer
+import requests
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. Page Config
@@ -104,16 +104,9 @@ _CSS_COMPONENTS = """
 
 _CSS_INPUT = """
 <style>
-div[data-testid="stTextInput"] {
-    margin-bottom: 0.5rem;
-}
-div[data-testid="stTextInput"] label {
-    display: none !important;
-}
-div[data-baseweb="input"] {
-    background-color: #FFFFFF !important;
-    border-radius: 3px !important;
-}
+div[data-testid="stTextInput"] { margin-bottom: 0.5rem; }
+div[data-testid="stTextInput"] label { display: none !important; }
+div[data-baseweb="input"] { background-color: #FFFFFF !important; border-radius: 3px !important; }
 div[data-baseweb="input"] > div {
     background-color: #FFFFFF !important;
     border: 2px solid #1B2A47 !important;
@@ -132,10 +125,7 @@ div[data-baseweb="input"] input {
     background-color: #FFFFFF !important;
     font-family: system-ui, sans-serif !important;
 }
-div[data-baseweb="input"] input::placeholder {
-    color: #A0A8B4 !important;
-    font-style: italic;
-}
+div[data-baseweb="input"] input::placeholder { color: #A0A8B4 !important; font-style: italic; }
 </style>
 """
 
@@ -159,10 +149,7 @@ _CSS_CARDS = """
     margin-bottom: 0.9rem;
     transition: border-left-color 0.2s ease, box-shadow 0.2s ease;
 }
-.result-card:hover {
-    border-left-color: #C8922A;
-    box-shadow: 0 4px 18px rgba(27,42,71,0.09);
-}
+.result-card:hover { border-left-color: #C8922A; box-shadow: 0 4px 18px rgba(27,42,71,0.09); }
 .result-rank {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.63rem;
@@ -171,19 +158,8 @@ _CSS_CARDS = """
     text-transform: uppercase;
     margin-bottom: 0.45rem;
 }
-.result-text {
-    font-size: 0.96rem;
-    line-height: 1.65;
-    color: #1A1D20;
-    margin-bottom: 0.85rem;
-}
-.result-footer {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
+.result-text { font-size: 0.96rem; line-height: 1.65; color: #1A1D20; margin-bottom: 0.85rem; }
+.result-footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem; }
 .score-pill {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.78rem;
@@ -193,25 +169,9 @@ _CSS_CARDS = """
     padding: 3px 10px;
     border-radius: 2px;
 }
-.score-bar-wrap {
-    flex: 1;
-    height: 5px;
-    background: #E8E4DA;
-    border-radius: 3px;
-    overflow: hidden;
-    min-width: 80px;
-    max-width: 200px;
-}
-.score-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    background: linear-gradient(90deg, #1B2A47, #C8922A);
-}
-.doc-id {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.67rem;
-    color: #9CA3AF;
-}
+.score-bar-wrap { flex: 1; height: 5px; background: #E8E4DA; border-radius: 3px; overflow: hidden; min-width: 80px; max-width: 200px; }
+.score-bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, #1B2A47, #C8922A); }
+.doc-id { font-family: 'JetBrains Mono', monospace; font-size: 0.67rem; color: #9CA3AF; }
 .empty-state {
     background: #FFFFFF;
     border: 1px dashed #C0BBB0;
@@ -221,19 +181,8 @@ _CSS_CARDS = """
     color: #6B7280;
     margin-top: 1rem;
 }
-.empty-title {
-    font-family: Georgia, serif;
-    font-size: 1.2rem;
-    color: #1B2A47;
-    margin-bottom: 0.4rem;
-}
-.empty-examples {
-    margin-top: 1.1rem;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 0.5rem;
-}
+.empty-title { font-family: Georgia, serif; font-size: 1.2rem; color: #1B2A47; margin-bottom: 0.4rem; }
+.empty-examples { margin-top: 1.1rem; display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
 .example-chip {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.73rem;
@@ -243,13 +192,7 @@ _CSS_CARDS = """
     padding: 4px 12px;
     border-radius: 2px;
 }
-.chart-panel {
-    background: #FFFFFF;
-    border: 1px solid #E0DDD4;
-    border-radius: 3px;
-    padding: 1.2rem 1.3rem;
-    margin-top: 1rem;
-}
+.chart-panel { background: #FFFFFF; border: 1px solid #E0DDD4; border-radius: 3px; padding: 1.2rem 1.3rem; margin-top: 1rem; }
 .chart-panel-title {
     font-family: 'JetBrains Mono', monospace;
     font-size: 0.68rem;
@@ -281,14 +224,12 @@ st.markdown("""
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Load Resources
 # ─────────────────────────────────────────────────────────────────────────────
-@st.cache_resource(show_spinner="Loading embedding model…")
+@st.cache_resource(show_spinner="Loading matrix indexes...")
 def load_resources():
-    doc_embeddings = np.load("Doc_Embeddings.npy")
-    model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
-    return doc_embeddings, model
+    return np.load("Doc_Embeddings.npy")
 
 try:
-    doc_embeddings, model = load_resources()
+    doc_embeddings = load_resources()
 except FileNotFoundError:
     st.error("**Missing file:** `Doc_Embeddings.npy` not found. Place it in the working directory and restart.")
     st.stop()
@@ -296,13 +237,8 @@ except FileNotFoundError:
 
 @st.cache_data
 def load_documents():
-    """
-    FIXED: Reading the real news sentences directly from Pakistan_News.csv.
-    """
     try:
-        # Load your actual dataset
         df = pd.read_csv("Pakistan_News.csv")
-        # Extract the details column as a clean list of strings
         return df["Details"].astype(str).tolist()
     except FileNotFoundError:
         st.error("**Missing file:** `Pakistan_News.csv` not found. Please ensure it is uploaded to your repository.")
@@ -334,7 +270,7 @@ st.markdown(f"""
         <div class="stat-label">Embed Dims</div>
     </div>
     <div class="stat-box">
-        <div class="stat-value">MPNet</div>
+        <div class="stat-value">API Server</div>
         <div class="stat-label">Encoder</div>
     </div>
     <div class="stat-box">
@@ -345,7 +281,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6. Search Input
+# 6. Search Input & Serverless Function
 # ─────────────────────────────────────────────────────────────────────────────
 st.markdown('<span class="search-label">🔍 &nbsp;Query the Corpus</span>', unsafe_allow_html=True)
 
@@ -356,9 +292,21 @@ query_text = st.text_input(
     key="main_query",
 )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 7. Similarity Function
-# ─────────────────────────────────────────────────────────────────────────────
+HF_TOKEN = "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"
+API_URL = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-mpnet-base-v2"
+
+def call_embedding_api(text_query):
+    headers = {
+        "Authorization": f"Bearer {HF_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {"inputs": text_query, "options": {"wait_for_model": True}}
+    
+    response = requests.post(API_URL, headers=headers, json=payload)
+    if response.status_code != 200:
+        raise Exception(f"Hugging Face API Error {response.status_code}: {response.text}")
+    return np.array(response.json())
+
 def cosine_top_k(query_vec, doc_vecs, k=5):
     q = query_vec.reshape(1, -1)
     q_norm = q / (np.linalg.norm(q, axis=1, keepdims=True) + 1e-10)
@@ -368,16 +316,20 @@ def cosine_top_k(query_vec, doc_vecs, k=5):
     return idx, sims[idx]
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 8. Results rendering
+# 7. Results rendering
 # ─────────────────────────────────────────────────────────────────────────────
 if query_text.strip():
     if not documents:
         st.error("No documents loaded. Configure `load_documents()` with your corpus path.")
         st.stop()
 
-    with st.spinner("Running semantic search…"):
-        q_emb = model.encode(query_text.strip())
-        top_idx, top_scores = cosine_top_k(q_emb, doc_embeddings, k=5)
+    with st.spinner("Requesting serverless vector transformation and running search..."):
+        try:
+            q_emb = call_embedding_api(query_text.strip())
+            top_idx, top_scores = cosine_top_k(q_emb, doc_embeddings, k=5)
+        except Exception as e:
+            st.error(f"Failed to reach the Inference API: {e}")
+            st.stop()
 
     results = pd.DataFrame({
         "rank":    list(range(1, len(top_idx) + 1)),
